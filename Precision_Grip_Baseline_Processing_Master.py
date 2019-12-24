@@ -5,7 +5,7 @@
 
 # # Import modules and set user paths
 
-# In[1]:
+# In[ ]:
 
 
 ## set plot output style
@@ -47,7 +47,7 @@ print_diagnostic=False
 test_report=False
 
 
-# In[2]:
+# In[ ]:
 
 
 def set_directories_vitality (DataAnalysis_path, year, session, print_diagnostic = False ):
@@ -67,8 +67,7 @@ def set_directories_vitality (DataAnalysis_path, year, session, print_diagnostic
     data_directory = DataAnalysis_path + data_path
     output_directory = DataAnalysis_path + output_path
     montage_directory = DataAnalysis_path + montage_path
-#     report_directory = DataAnalysis_path + report_path
-    report_directory = '/Users/tariqcannonier/Jones_Lab/Precision_Grip' + report_path
+    report_directory = DataAnalysis_path + report_path
     
     ## get filenames
     
@@ -87,7 +86,7 @@ if test_fxn==True: # test function
     data_directory, output_directory, report_directory,     data_filenames = set_directories_vitality (user_path, year, session, print_diagnostic)
 
 
-# In[3]:
+# In[ ]:
 
 
 ## define function to get participant_info dictionary from file_list
@@ -142,7 +141,7 @@ if test_fxn==True: # test function
 
 # # Import and filter data; view data properties
 
-# In[4]:
+# In[ ]:
 
 
 ##### define function as preprocess_mydata
@@ -207,7 +206,7 @@ if test_fxn==True: # test function
 
 # # View data properties, plot channels
 
-# In[5]:
+# In[ ]:
 
 
 ## define function to view data properties
@@ -240,7 +239,7 @@ if print_diagnostic==True: # test function
     view_data_properties ( print_props , filtered_data['emg'])
 
 
-# In[6]:
+# In[ ]:
 
 
 ## function to plot channels
@@ -295,7 +294,7 @@ if print_diagnostic==True: # test function
 
 # **Our data comes from EEGLAB and so we will need to use [events_from_annotations()](https://www.nmr.mgh.harvard.edu/mne/stable/generated/mne.events_from_annotations.html) command to get events from the data format EEGLAB exports**
 
-# In[7]:
+# In[ ]:
 
 
 ## epoch data by block timestamps
@@ -328,24 +327,23 @@ def epoch_data ( data_file, print_diagnostic = False ): #define function
         print('\n###\n### Printing event IDs ... \n###\n\n',event_id,'\n\n')
         print('\n###\n### Printing events ... \n###\n\n',events,'\n\n')
         print('\n###\n### Printing timestamps ... \n###\n\n',timestamps,'\n')
-        events_fig = mne.viz.plot_events(events, sfreq=data_file.info['sfreq']);
+        events_fig = mne.viz.plot_events(events, sfreq=data_file.info['sfreq'],event_id=event_id);
         
-        # Title and legend in figure
+        # Title in figure
         ax = events_fig.get_axes()
         ax[0].set_title('Events in Continuous Data')
-        ax[0].legend(['StartBlock','Endblock','255'])
-    
-    return timestamps, events;
+        ax[0].legend(loc='upper right')
+        
+    return timestamps, events, event_id;
 
 if test_fxn==True: # test function
     # leaving out EMG processing until we know how we want to crop emg data
-    epochs, events = epoch_data( filtered_data['eeg'] , print_diagnostic) # run epoching function
-    
+    epochs, events, event_id = epoch_data( filtered_data['eeg'] , print_diagnostic) # run epoching function
 
 
 # # Crop data; process events and epochs
 
-# In[8]:
+# In[ ]:
 
 
 def crop_data (data_file, timestamps, print_diagnostic = False ):
@@ -384,12 +382,12 @@ if test_fxn==True: # test function
     filtered_blocks = crop_data(filtered_data , epochs, print_diagnostic)
 
 
-# In[9]:
+# In[ ]:
 
 
 def generate_block_figs(filtered_blocks, n_epochs, duration, scalings, i):
 
-    plt.ioff() # turns off plots
+#     plt.ioff() # turns off plots
     block_figs = {'eeg':None,'emg':None}
     
     # define figures for report
@@ -424,12 +422,12 @@ if test_fxn==True: # test function
 
 # # Report
 
-# In[10]:
+# In[ ]:
 
 
 ## define report
 
-def reporting(epochs, subject_ID, filtered_blocks,              working_data, filtered_data, events, report_directory):
+def reporting(epochs, subject_ID, filtered_blocks,              working_data, filtered_data, events, event_id, report_directory):
     
     # Define EEG and EMG explicitly.  Can use this solution until mne patches pick_types(emg=True)
     eeg_chans = ['Fp1', 'Fp2', 'F3', 'Fz', 'F4', 'C3', 'Cz', 'C4', 'P3', 'Pz', 'P4', 'Oz']
@@ -444,7 +442,7 @@ def reporting(epochs, subject_ID, filtered_blocks,              working_data, fi
     eeg_chs_filtered = filtered_data['eeg'].plot_psd(average=False,xscale='linear', show=False);
     emg_chs_raw = working_data.copy().pick_channels(emg_chans).plot_psd(average=False,xscale='linear', show=False);
     emg_chs_filtered = filtered_data['emg'].plot_psd(average=False,xscale='linear', show=False);
-    show_events = mne.viz.plot_events(events, sfreq=working_data.info['sfreq'], show=False);
+    show_events = mne.viz.plot_events(events, sfreq=working_data.info['sfreq'], event_id=event_id, show=False);
     
     partic_figs=[eeg_chs_raw, eeg_chs_filtered, emg_chs_raw, emg_chs_filtered, show_events]
     captions = ["raw EEG psd","filtered EEG psd","raw EMG psd","filtered EMG psd","events"]
@@ -453,6 +451,9 @@ def reporting(epochs, subject_ID, filtered_blocks,              working_data, fi
     for e, c in zip(partic_figs,captions):
         ax = e.get_axes()
         ax[0].set_title(c)
+        
+        if captions == 'events': # Place legend in upper right corner for events plot
+            ax[0].legend(loc='upper right')
             
     # Add caption to report page
     rep.add_figs_to_section(partic_figs, captions=["raw EEG psd","filtered EEG psd",                                                   "raw EMG psd","filtered EMG psd","events"],                            section="Subject "+subject_ID)
@@ -474,7 +475,8 @@ def reporting(epochs, subject_ID, filtered_blocks,              working_data, fi
             
             
     # set report filename
-    filename = os.getcwd()+os.path.sep+subject_ID+'_'+session+'_report.html'
+#     filename = os.getcwd()+os.path.sep+subject_ID+'_'+session+'_report.html'
+    filename=report_directory+subject_ID+'_'+session+'_report.html'
 
     # save report
     rep.save(filename, overwrite=True, open_browser=False)
@@ -485,13 +487,13 @@ if test_report==True: # test function
     participant_ID='2010'
     
     # leaving out EMG processing until we know how we want to crop emg data
-    reporting(epochs, participant_ID, filtered_blocks, working_data,              filtered_data, events, report_directory)
+    reporting(epochs, participant_ID, filtered_blocks, working_data,              filtered_data, events, event_id, report_directory)
     
 
 
 # # Loop through multiple subjects
 
-# In[11]:
+# In[ ]:
 
 
 ## code to loop through subjects and generate reports
@@ -514,12 +516,12 @@ def run_reports( subject_list, filter_params, n_epochs, duration, scalings ):
 
             raw_data, working_data, filtered_data = filter_mydata( participant_info[e][0] , filter_params )
 
-            epochs, events = epoch_data( filtered_data['eeg'], False)
+            epochs, events, event_id = epoch_data( filtered_data['eeg'], False)
 
             # leaving out EMG processing until we know how we want to crop emg data
             filtered_blocks = crop_data(filtered_data , epochs, False)
 
-            reporting(epochs, subject_ID, filtered_blocks,                     working_data, filtered_data, events, report_directory);
+            reporting(epochs, subject_ID, filtered_blocks,                     working_data, filtered_data, events, event_id, report_directory);
             
 
 
@@ -531,7 +533,7 @@ def run_reports( subject_list, filter_params, n_epochs, duration, scalings ):
 
 # # Workflow for looping through subjects
 
-# In[12]:
+# In[ ]:
 
 
 ## define list of subject(s) to analyze
