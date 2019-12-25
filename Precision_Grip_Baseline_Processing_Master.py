@@ -43,8 +43,8 @@ elif re.search('simona', home_Path, re.IGNORECASE):
 year='2017'
 session='pre'
 test_fxn=True
-print_diagnostic=False
-test_report=False
+print_diagnostic=True
+test_report=True
 
 
 # In[ ]:
@@ -176,10 +176,11 @@ def filter_mydata( input_path , filter_params):
 
     ## highpass EMG channels
     emg_only.filter(filter_params['emg']['highpass'],None,fir_design='firwin',verbose=False)
-    
+
     ## rectify EMG data
     emg_only.apply_function(np.absolute)
-    
+    emg_rectified = emg_only.copy()
+
     ## low pass rectified EMG data
     emg_only.filter(None,filter_params['emg']['lowpass'],fir_design='firwin',verbose=False)
     
@@ -187,7 +188,7 @@ def filter_mydata( input_path , filter_params):
 
     
     ## package EEG and EMG data in dictionary
-    filtered_data = {'eeg':eeg_only,'emg':emg_only}
+    filtered_data = {'eeg':eeg_only,'emg':emg_only,'emg_hp_rectified':emg_rectified}
 
     return raw_data, working_data, filtered_data; # emg_only # return filtered data
 
@@ -354,7 +355,8 @@ def crop_data (data_file, timestamps, print_diagnostic = False ):
     # Instantiate dict for epoched data
     filtered_blocks = {
         'eeg':{'blocks':[],'events':[],'epochs':[]},\
-        'emg':{'blocks':[],'events':[],'epochs':[]}
+        'emg':{'blocks':[],'events':[],'epochs':[]},\
+        'emg_hp_rectified':{'blocks':[],'events':[],'epochs':[]}
     }
 
     # Iterate through timestamps and derive times to crop data
@@ -385,28 +387,79 @@ if test_fxn==True: # test function
 # In[ ]:
 
 
-def generate_block_figs(filtered_blocks, n_epochs, duration, scalings, i):
+def plot_linear_envelope(filtered_blocks, block):
+    
+    # Text for the legend once plotted
+    legend_text = ['LP & Rect', 'LP, Rect, & HP']
+    
+    # Index T7-T8 channel
+    T7T8_data, T7T8_times = filtered_blocks['emg_hp_rectified']['blocks'][block][4]
+    T7T8_filt_data, times = filtered_blocks['emg']['blocks'][block][4]
+
+    # Index PO7-PO8 channel
+    PO7PO8_data, PO7PO8_times = filtered_blocks['emg_hp_rectified']['blocks'][block][5]
+    PO7PO8_filt_data, times = filtered_blocks['emg']['blocks'][block][5]
+    
+    # Create plot for T7-T8 Channels and PO7-PO8 Channels
+    envelope_fig, (a1, a2) = plt.subplots(2,1)
+    envelope_fig.suptitle('Linear Envelope: Block %i' % (block+1))
+    a1.plot(T7T8_times, T7T8_data.T, 'b', T7T8_times, T7T8_filt_data.T, 'r')
+    a1.set_title('T7-T8')
+    a1.legend(legend_text, loc='upper right')
+    
+    
+    a2.plot(PO7PO8_times, PO7PO8_data.T, 'b', PO7PO8_times, PO7PO8_filt_data.T, 'r')
+    a2.legend(legend_text, loc='upper right')
+    a2.set_title('PO7-PO8')
+    plt.xlabel('Time (s)',fontsize='large')
+#     fig.show()
+    
+    return envelope_fig;
+    
+if test_fxn == True:
+# for block in range(0,5):
+#     plot_linear_envelope(filtered_blocks, block)
+    block = 0
+    plot_linear_envelope(filtered_blocks, 4)
+
+
+# In[ ]:
+
+
+def generate_block_figs(filtered_blocks, n_epochs, duration, scalings, block):
 
 #     plt.ioff() # turns off plots
-    block_figs = {'eeg':None,'emg':None}
+    block_figs = { 'eeg':None, 'emg':None }
     
     # define figures for report
-    for key in filtered_blocks.keys():
+    for key in ['eeg', 'emg']:
+        
+        
+        plot_blocks = filtered_blocks[key]['blocks'][block].plot(events=filtered_blocks[key]['events'][block],                                                          duration=duration,show=False,scalings=scalings);
+        butterfly = filtered_blocks[key]['epochs'][block].average().plot(show=False,scalings=scalings);        
         
         # Select channels if you're iterating through EEG or EMG data
         if key == 'eeg':
             picks = ['Fp1', 'Fp2', 'F3', 'Fz', 'F4', 'C3', 'Cz', 'C4', 'P3', 'Pz', 'P4', 'Oz']
+
         else:
             picks = ['T7', 'T8', 'PO7', 'PO8']
+            linear_envelope = plot_linear_envelope(filtered_blocks, block)
         
-        plot_blocks = filtered_blocks[key]['blocks'][i].plot(events=filtered_blocks[key]['events'][i],                                                          duration=duration,show=False,scalings=scalings);
-        butterfly = filtered_blocks[key]['epochs'][i].average().plot(show=False,scalings=scalings);
         ## PROBABLY CAN REMOVE THE TOPOMAP FOR EMG    
-        topomap = filtered_blocks[key]['epochs'][i].copy().pick(picks).average().plot_topomap(show=False,                                                                                              scalings=scalings);
-        topojoint = filtered_blocks[key]['epochs'][i].copy().pick(picks).average().plot_joint(show=False);
-        
+        topomap = filtered_blocks[key]['epochs'][block].copy().pick(picks).average().plot_topomap(show=False,                                                                                              scalings=scalings);
+        topojoint = filtered_blocks[key]['epochs'][block].copy().pick(picks).average().plot_joint(show=False);
+
+
+        if key == 'emg':
+            block_figs.update( { key: [ plot_blocks, butterfly, topomap, topojoint, linear_envelope ] } )
+
+        else:
+            block_figs.update( { key: [ plot_blocks, butterfly, topomap, topojoint ] } )
+            
+#         envelope = plot_linear_envelope(filtered_blocks, block)
         # save report figures to list
-        block_figs.update( { key: [ plot_blocks, butterfly, topomap, topojoint ] } )
+#         block_figs.update( { key: [ plot_blocks, butterfly, topomap, topojoint, envelope ] } )
     
     return block_figs;
 
@@ -416,8 +469,8 @@ if test_fxn==True: # test function
     n_epochs = 3 # Use for viewing subset of epochs.
     duration = n_epochs*2 # Use for viewing subset of epochs. Otherwise set to 40
     scalings = 1/25000 # Setting it to a constant to compare artifact in epoching
-    i = 1
-    block_figs = generate_block_figs(filtered_blocks, n_epochs, duration, scalings, i);
+    block = 1
+    block_figs = generate_block_figs(filtered_blocks, n_epochs, duration, scalings, block);
 
 
 # # Report
@@ -443,7 +496,7 @@ def reporting(epochs, subject_ID, filtered_blocks,              working_data, fi
     emg_chs_raw = working_data.copy().pick_channels(emg_chans).plot_psd(average=False,xscale='linear', show=False);
     emg_chs_filtered = filtered_data['emg'].plot_psd(average=False,xscale='linear', show=False);
     show_events = mne.viz.plot_events(events, sfreq=working_data.info['sfreq'], event_id=event_id, show=False);
-    
+        
     partic_figs=[eeg_chs_raw, eeg_chs_filtered, emg_chs_raw, emg_chs_filtered, show_events]
     captions = ["raw EEG psd","filtered EEG psd","raw EMG psd","filtered EMG psd","events"]
     
@@ -456,27 +509,29 @@ def reporting(epochs, subject_ID, filtered_blocks,              working_data, fi
             ax[0].legend(loc='upper right')
             
     # Add caption to report page
-    rep.add_figs_to_section(partic_figs, captions=["raw EEG psd","filtered EEG psd",                                                   "raw EMG psd","filtered EMG psd","events"],                            section="Subject "+subject_ID)
+    rep.add_figs_to_section(partic_figs, captions=["raw EEG psd","filtered EEG psd",                                                   "raw EMG psd","filtered EMG psd","events"],                            section="Subject "+subject_ID)    
     
-    for i in range(0,len(epochs)): # loop through blocks
+    for block in range(0,len(epochs)): # loop through blocks
         
         # make figures
-        block_figs = generate_block_figs(filtered_blocks, n_epochs, duration, scalings, i);
+        block_figs = generate_block_figs(filtered_blocks, n_epochs, duration, scalings, block);
 
         # Iterate through EEG and EMG
         for key in block_figs.keys():
             
             # define figure captions
-            captions = ['Block %d Data %s' % (i+1, key.upper()),                     'Block %d Butterfly %s' % (i+1, key.upper()),                     'Block %d Topomap %s' % (i+1, key.upper()),                     'Block %d TopoJoint %s' % (i+1, key.upper())]
+            captions = ['Block %d Data %s' % (block+1, key.upper()),                     'Block %d Butterfly %s' % (block+1, key.upper()),                     'Block %d Topomap %s' % (block+1, key.upper()),                     'Block %d TopoJoint %s' % (block+1, key.upper())]
 
+            if key == 'emg':
+                captions.append('Block %d Linear Envelope %s' % (block+1, key.upper()))
 
             # add list of figures to report
-            rep.add_figs_to_section( figs=block_figs[key], captions=captions, section='Subject '+subject_ID+' Block %d' % (i+1))
+            rep.add_figs_to_section( figs=block_figs[key], captions=captions, section='Subject '+subject_ID+' Block %d' % (block+1))
             
             
     # set report filename
-#     filename = os.getcwd()+os.path.sep+subject_ID+'_'+session+'_report.html'
-    filename=report_directory+subject_ID+'_'+session+'_report.html'
+    filename = os.getcwd()+os.path.sep+subject_ID+'_'+session+'_report.html'
+#     filename=report_directory+subject_ID+'_'+session+'_report.html'
 
     # save report
     rep.save(filename, overwrite=True, open_browser=False)
