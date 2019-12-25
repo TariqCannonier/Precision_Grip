@@ -42,9 +42,9 @@ elif re.search('simona', home_Path, re.IGNORECASE):
 ## option to test functions as you proceed through script cell by cell
 year='2017'
 session='pre'
-test_fxn=True
-print_diagnostic=True
-test_report=True
+test_fxn=False
+print_diagnostic=False
+test_report=False
 
 
 # In[ ]:
@@ -530,8 +530,8 @@ def reporting(epochs, subject_ID, filtered_blocks,              working_data, fi
             
             
     # set report filename
-    filename = os.getcwd()+os.path.sep+subject_ID+'_'+session+'_report.html'
-#     filename=report_directory+subject_ID+'_'+session+'_report.html'
+#     filename = os.getcwd()+os.path.sep+subject_ID+'_'+session+'_report.html'
+    filename=report_directory+subject_ID+'_'+session+'_report.html'
 
     # save report
     rep.save(filename, overwrite=True, open_browser=False)
@@ -592,12 +592,9 @@ def run_reports( subject_list, filter_params, n_epochs, duration, scalings ):
 
 
 ## define list of subject(s) to analyze
-subject_list=['2004', '2010', '2037']
-# subject_list=['2037', '2004', '2025', '2012', '2016', '2021', '2029', '2017',\
-#               '2020', '2024', '2013', '2028', '2046', '2042', '2032', '2001',\
-#               '2036', '2009', '2019', '2026', '2011', '2015', '2022', '2038',\
-#               '2003', '2034', '2030', '2007', '2039', '2031', '2002', '2045',\
-#               '2041', '2018', '2014', '2023', '2010']
+# subject_list=['2004', '2010', '2037']
+subject_list=['2037', '2004', '2025', '2012', '2016', '2021', '2029', '2017',              '2020', '2024', '2013', '2028', '2046', '2042', '2032', '2001',              '2036', '2009', '2019', '2026', '2011', '2015', '2022', '2038',              '2003', '2034', '2030', '2007', '2039', '2031', '2002', '2045',              '2041', '2018', '2014', '2023', '2010']
+subject_list = sorted(subject_list)
 
 ## set analysis properties
 highpass_eeg = 0.01 
